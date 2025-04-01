@@ -11,6 +11,11 @@ from geometry_msgs.msg import Quaternion
 import math
 
 
+
+# Mission control
+from custom_msg_srv.srv import StartExploration
+
+
 class ExplorerNode(Node):
     def __init__(self):
         super().__init__('explorer')
@@ -30,10 +35,20 @@ class ExplorerNode(Node):
         self.map_data = None
         self.robot_position = (0, 0)  # Placeholder, update from localization
 
-        # Timer for periodic exploration
-        self.timer = self.create_timer(5.0, self.explore)
-
         self.previous_frontier = None
+
+        # Mission Control
+        self.start_explore_srv = self.create_service(StartExploration, '/mission_execute/start_exploration', self.start_exploration)
+
+    def start_exploration(self, request, response):
+        if request.explore_now:
+            self.get_logger().info("starting exploration by mission_execute")
+            self.timer = self.create_timer(5.0, self.explore)
+        else:
+            self.get_logger().info("stopping exploration by mission_execute")
+            self.timer.cancel()
+        return response
+        
 
     def map_callback(self, msg):
         self.map_data = msg
@@ -194,6 +209,7 @@ class ExplorerNode(Node):
         return chosen_frontier
 
     def explore(self):
+        self.get_logger().info(f"exploring now!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
         if self.map_data is None:
             self.get_logger().warning("No map data available")
             return
@@ -239,7 +255,6 @@ def main(args=None):
     explorer_node = ExplorerNode()
 
     try:
-        explorer_node.get_logger().info("Starting exploration...")
         rclpy.spin(explorer_node)
     except KeyboardInterrupt:
         explorer_node.get_logger().info("Exploration stopped by user")

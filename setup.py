@@ -21,6 +21,7 @@ setup(
     entry_points={
         'console_scripts': [
             'explorer = custom_explorer.explorer:main',
+            'mission_GOOOO =  custom_explorer.mission_execute:main',
         ],
     },
 )
