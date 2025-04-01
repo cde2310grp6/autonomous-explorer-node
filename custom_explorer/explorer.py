@@ -9,6 +9,9 @@ from collections import deque
 from tf_transformations import quaternion_from_euler
 from geometry_msgs.msg import Quaternion
 import math
+import custom_explorer.rviz_marker as rviz_marker
+
+enableMarkers = True
 
 
 class ExplorerNode(Node):
@@ -22,6 +25,10 @@ class ExplorerNode(Node):
 
         # Action client for navigation
         self.nav_to_pose_client = ActionClient(self, NavigateToPose, 'navigate_to_pose')
+
+        if enableMarkers:
+            # Publisher for the chosen frontier marker
+            self.frontier_marker = rviz_marker.RvizMarker()
 
         # Visited frontiers set
         self.visited_frontiers = set()
@@ -38,6 +45,9 @@ class ExplorerNode(Node):
     def map_callback(self, msg):
         self.map_data = msg
         self.get_logger().info("Map received")
+        if enableMarkers:
+            self.frontier_marker.update_map_consts(
+                msg.info.resolution, msg.info.origin.position.x, msg.info.origin.position.y)
 
     def navigate_to(self, x, y):
         """
@@ -133,6 +143,7 @@ class ExplorerNode(Node):
                         queue.append((nr, nc))
 
         self.get_logger().info(f"Found {len(frontiers)} frontiers")
+        if enableMarkers: self.frontier_marker.publish_marker_array(frontiers)
         return frontiers
 
     def choose_frontier(self, frontiers, map_array):
@@ -188,6 +199,8 @@ class ExplorerNode(Node):
             self.visited_frontiers.add(chosen_frontier)
             self.previous_frontier = chosen_frontier
             self.get_logger().info(f"Chosen frontier: {chosen_frontier}")
+            if enableMarkers: self.frontier_marker.publish_marker(chosen_frontier=chosen_frontier)
+
         else:
             self.get_logger().warning("No valid frontier found")
 
