@@ -141,8 +141,10 @@ class ExplorerNode(Node):
         queue = deque()
 
         # Start BFS from the robot's position
-        robot_row = int(self.robot_position[0])
-        robot_col = int(self.robot_position[1])
+        # robot_row = int(self.robot_position[0])
+        # robot_col = int(self.robot_position[1])
+        robot_row = int((self.robot_position[1] - self.map_data.info.origin.position.y) / self.map_data.info.resolution)
+        robot_col = int((self.robot_position[0] - self.map_data.info.origin.position.x) / self.map_data.info.resolution)
         self.get_logger().info(f"Robot position: ({robot_row}, {robot_col})")
         queue.append((robot_row, robot_col))
         visited[robot_row, robot_col] = True
@@ -172,6 +174,7 @@ class ExplorerNode(Node):
         """
         Choose the best frontier to explore based on distance, number of unknown cells around it, and direction.
         """
+        rows, cols = map_array.shape 
         robot_row, robot_col = self.robot_position
         chosen_frontier = None
 
@@ -193,9 +196,19 @@ class ExplorerNode(Node):
             neighbors = map_array[r-1:r+2, c-1:c+2].flatten()
             unknown_count = np.sum(neighbors == -1)
 
+            # Skip frontiers near already visited frontiers
+            #Copilot: Increased threshold to 3
+            skip = False
+            for visited in self.visited_frontiers:
+                if np.sqrt((visited[0] - r)**2 + (visited[1] - c)**2) < 2:  # Threshold distance
+                    skip = True
+                    break
+            if skip:
+                continue
+
             # Check for obstacles around the frontier
             obstacle_free = True
-            check_range = 5
+            check_range = 3
             for i in range(r-check_range, r + check_range):
                 for j in range(c-check_range, c + check_range):
                     try: # try-except to reject frontiers too close to boundary of map
@@ -206,6 +219,26 @@ class ExplorerNode(Node):
                         break
                 if not obstacle_free:
                     break
+            #for i in range(max(0, r-check_range), min(rows, r+check_range)):
+            #   for j in range(max(0, c-check_range), min(cols, c+check_range)):
+            #        try:
+            #            if map_array[i, j] == 100:  # Assuming 100 represents an obstacle
+            #                obstacle_free = False
+            #                break
+            #        except IndexError:
+            #            continue
+            #    if not obstacle_free:
+            #        break
+            
+            # Calculate the angular penalty
+            frontier_angle = math.atan2(r - robot_row, c - robot_col)
+            if self.previous_frontier:
+                prev_r, prev_c = self.previous_frontier
+                prev_angle = math.atan2(prev_r - robot_row, prev_c - robot_col)
+                angular_penalty = abs(frontier_angle - prev_angle)
+            else:
+                angular_penalty = 0
+            angular_penalty = angular_penalty / (2 * math.pi)  # Normalize to range [0, 1]
 
             if not obstacle_free:
                 # self.get_logger().info(f"Frontier at ({r}, {c}) is too close to an obstacle")
@@ -218,7 +251,7 @@ class ExplorerNode(Node):
                 prev_r, prev_c = self.previous_frontier
                 direction_penalty = np.sqrt((prev_r - r)**2 + (prev_c - c)**2)
 
-            score = distance + unknown_count - 2.0*direction_penalty  # Extra emphasis on direction penalty (wastes a lot of time doing u turns)
+            score = 1.0 * distance + 4.0 * unknown_count - 0.5 * direction_penalty - 0.5 * angular_penalty # Extra emphasis on direction penalty (wastes a lot of time doing u turns)
 
             # self.get_logger().info(f"score { score }")
 
