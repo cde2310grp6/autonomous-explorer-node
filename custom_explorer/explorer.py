@@ -11,6 +11,9 @@ from geometry_msgs.msg import Quaternion
 import math
 import custom_explorer.rviz_marker as rviz_marker
 
+# for mission control
+from custom_msg_srv.srv import StartExploration
+
 enableMarkers = True
 
 
@@ -26,6 +29,9 @@ class ExplorerNode(Node):
         # Action client for navigation
         self.nav_to_pose_client = ActionClient(self, NavigateToPose, 'navigate_to_pose')
 
+        # Service for mission control
+        self.exploration_service = self.create_service(StartExploration, 'start_exploration', self.toggle_exploration)
+
         if enableMarkers:
             # Publisher for the chosen frontier marker
             self.frontier_marker = rviz_marker.RvizMarker()
@@ -36,9 +42,6 @@ class ExplorerNode(Node):
         # Map and position data
         self.map_data = None
         self.robot_position = (0, 0)  # Placeholder, update from localization
-
-        # Timer for periodic exploration
-        self.timer = self.create_timer(5.0, self.explore)
 
         self.previous_frontier = None
 
@@ -86,6 +89,16 @@ class ExplorerNode(Node):
         # Send the goal and register a callback for the result
         send_goal_future = self.nav_to_pose_client.send_goal_async(nav_goal)
         send_goal_future.add_done_callback(self.goal_response_callback)
+
+    def toggle_exploration(self, request, response):
+        if request.explore_now:
+            self.get_logger().info("MC start exploration")
+            self.explore_timer = self.create_timer(5.0, self.explore)
+        else:
+            self.get_logger().info("MC stop exploration")
+            self.explore_timer.cancel()
+
+        return response
 
     def goal_response_callback(self, future):
         """
