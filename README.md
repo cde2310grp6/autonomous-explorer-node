@@ -1,3 +1,9 @@
+# Alternative Package for Frontier Exploration
+
+# This is not the frontier exploration package used for the project
+
+
+
 # Autonomous Explorer Node for Frontier Exploration
 
 This repository contains a ROS 2 package implementing an autonomous frontier exploration algorithm using Nav2. The Explorer Node subscribes to a map, detects frontiers, and sends navigation goals to explore the environment.
